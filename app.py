@@ -49,8 +49,58 @@ from openpyxl.utils import get_column_letter
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.worksheet.properties import PageSetupProperties
 
-st.set_page_config(page_title="Seguiment Pressupostari · Ens Local",
-                   page_icon="📊", layout="wide")
+st.set_page_config(page_title="Seguiment Pressupostari · Àrea de Suport Econòmic",
+                   page_icon="📊", layout="centered")
+
+# ----------------------------- ESTIL -----------------------------
+ESTIL = """
+<style>
+.block-container { max-width: 820px; padding-top: 2.2rem; padding-bottom: 3rem; }
+h1, h2, h3 { letter-spacing: -0.01em; }
+.capcalera {
+    border-left: 4px solid #1F3864;
+    padding: 0.15rem 0 0.15rem 1rem;
+    margin-bottom: 0.4rem;
+}
+.capcalera .area { font-size: 1.55rem; font-weight: 700; color: #1F3864; line-height: 1.15; }
+.capcalera .servei { font-size: 0.95rem; color: #5A6472; margin-top: 0.15rem; }
+.contacte { font-size: 0.82rem; color: #6B7280; margin-top: 0.3rem; line-height: 1.5; }
+.contacte a { color: #2E5A9E; text-decoration: none; }
+.contacte a:hover { text-decoration: underline; }
+.pas { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em;
+       text-transform: uppercase; color: #2E5A9E; margin: 0.2rem 0 0.1rem; }
+div.stButton > button[kind="primary"] {
+    width: 100%; border-radius: 8px; font-weight: 600; padding: 0.55rem 0;
+}
+div.stDownloadButton > button {
+    width: 100%; border-radius: 8px; font-weight: 600;
+    background: #1F7A54; color: #fff; border: none; padding: 0.6rem 0;
+}
+div.stDownloadButton > button:hover { background: #17603f; color:#fff; }
+.peu { font-size: 0.75rem; color: #9AA3AF; text-align: center;
+       margin-top: 2.5rem; border-top: 1px solid #E5E7EB; padding-top: 0.8rem; }
+</style>
+"""
+
+
+def capcalera():
+    st.markdown(ESTIL, unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="capcalera">
+            <div class="area">Àrea de Suport Econòmic</div>
+            <div class="servei">Servei de Concertació i Assistència al Municipi</div>
+        </div>
+        <div class="contacte">
+            Tel. 977 296 671 &nbsp;·&nbsp;
+            <a href="https://www.google.com/maps/search/Pere+Martell,+2+%7C+43001+Tarragona"
+               target="_blank">Pere Martell, 2 · 43001 Tarragona</a>
+            &nbsp;·&nbsp; <a href="https://www.dipta.cat" target="_blank">www.dipta.cat</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.divider()
 
 MESOS = ["Gen", "Feb", "Mar", "Abr", "Mai", "Jun",
          "Jul", "Ago", "Set", "Oct", "Nov", "Des"]
@@ -682,50 +732,68 @@ def construir_excel(resultat, det, any_proj=ANY_PROJ, mes_defecte=5):
 #  5. INTERFÍCIE STREAMLIT
 # ==================================================================
 def main():
-    st.title("📊 Seguiment pressupostari d'ingressos")
-    st.caption("Puja el teu Excel de seguiment (format ABSIS) i descarrega "
-               "l'Excel d'anàlisi amb projeccions, desviacions, alertes i "
-               "matriu de riscos. Tot el càlcul es fa aquí; el teu fitxer "
-               "original no es modifica.")
+    capcalera()
+
+    st.title("Seguiment pressupostari d'ingressos")
+    st.write("Aquesta eina projecta l'execució d'ingressos del proper exercici, "
+             "detecta desviacions i genera un informe en Excel amb la matriu de "
+             "riscos. Tot el càlcul es fa en aquesta pàgina i **el fitxer original "
+             "no es modifica**.")
 
     if not STATSMODELS_OK:
-        st.warning("⚠️ `statsmodels` no instal·lat: s'usarà només la projecció "
-                   "estacional simple. Instal·la'l amb `pip install statsmodels`.")
+        st.warning("`statsmodels` no està instal·lat: s'usarà només la projecció "
+                   "estacional simple.")
 
-    st.sidebar.header("⚙️ Configuració")
-    any_proj = st.sidebar.number_input("Any a projectar", 2024, 2040, ANY_PROJ)
-    mes_defecte = st.sidebar.slider("Mes analitzat inicial (es pot canviar "
-                                    "després a PARAMETRES)", 1, 12, 5)
-    st.sidebar.markdown("---")
-    st.sidebar.info("Els llindars d'alerta (crític ±40/−60, avís ±20/−40, "
-                    "pendent 5%, execució alta 95%) queden a la pestanya "
-                    "PARAMETRES de l'Excel resultant i es poden ajustar allà: "
-                    "tota la taula es recalcula sola.")
+    # ---- barra lateral: configuració ----
+    with st.sidebar:
+        st.markdown("### Configuració")
+        any_proj = st.number_input("Any a projectar", 2024, 2040, ANY_PROJ)
+        mes_defecte = st.slider("Mes analitzat inicial", 1, 12, 5,
+                                help="Es podrà canviar després a la pestanya "
+                                     "PARAMETRES de l'Excel.")
+        st.divider()
+        st.caption("**Llindars d'alerta** (editables a l'Excel resultant): "
+                   "crític ±40/−60 pp · avís ±20/−40 pp · pendent 5% · "
+                   "execució alta 95%. En canviar-los, tota la taula es recalcula.")
 
-    fitxer = st.file_uploader("📁 Puja l'Excel de seguiment (.xlsx)", type=["xlsx"])
+    # ---- pas 1: pujar fitxer ----
+    st.markdown('<div class="pas">Pas 1 · Fitxer</div>', unsafe_allow_html=True)
+    fitxer = st.file_uploader("Puja l'Excel de seguiment (.xlsx, format ABSIS)",
+                              type=["xlsx"], label_visibility="visible")
     if fitxer is None:
-        st.info("Puja el fitxer per començar.")
+        st.info("Comença pujant el teu Excel de seguiment.")
+        _peu()
         st.stop()
 
     xls_bytes = fitxer.read()
     with st.spinner("Llegint el llibre…"):
         fulles = llistar_fulles(xls_bytes)
-    st.success(f"Llibre carregat · {len(fulles)} fulles.")
+    st.success(f"Llibre carregat correctament · {len(fulles)} fulles.")
 
+    # ---- pas 2: opcions ----
+    st.markdown('<div class="pas">Pas 2 · Opcions</div>', unsafe_allow_html=True)
     default_idx = 0
     for i, f in enumerate(fulles):
         if "HISTÒRIC" in f.upper() and "INGRES" in f.upper():
             default_idx = i
             break
-    fulla = st.selectbox("Fulla d'històric d'ingressos", fulles, index=default_idx)
-
-    magnitud = st.selectbox("Magnitud a projectar",
-                            ["DRN – Drets reconeguts nets", "Recaptació neta",
-                             "Previsió definitiva", "Previsió inicial"])
+    col_a, col_b = st.columns(2)
+    with col_a:
+        fulla = st.selectbox("Fulla d'històric d'ingressos", fulles, index=default_idx,
+                             help="Pestanya del teu Excel amb l'històric multi-any.")
+    with col_b:
+        magnitud = st.selectbox("Magnitud a projectar",
+                                ["DRN – Drets reconeguts nets", "Recaptació neta",
+                                 "Previsió definitiva", "Previsió inicial"],
+                                help="DRN és l'execució d'ingressos (recomanat). "
+                                     "Recaptació és el cobrat de veritat.")
     mag_map = {"Previsió inicial": 4, "Previsió definitiva": 5,
                "DRN – Drets reconeguts nets": 6, "Recaptació neta": 7}
 
-    if not st.button("🚀 Generar l'Excel d'anàlisi", type="primary"):
+    # ---- pas 3: generar ----
+    st.markdown('<div class="pas">Pas 3 · Generar</div>', unsafe_allow_html=True)
+    if not st.button("Generar l'Excel d'anàlisi", type="primary"):
+        _peu()
         st.stop()
 
     try:
@@ -735,38 +803,56 @@ def main():
         st.error(f"No s'ha pogut llegir l'històric: {e}")
         st.stop()
 
-    st.success(f"Històric extret · {hist['aplicacio'].nunique()} aplicacions "
+    st.caption(f"Històric extret · {hist['aplicacio'].nunique()} aplicacions "
                f"· {hist['any'].nunique()} exercicis.")
 
     barra = st.progress(0.0, "Projectant…")
     resultat = {}
     for fet, total, apl, resultat in processar(hist, any_proj - 1):
-        barra.progress(fet / total, f"Projectant… {fet}/{total} ({apl})")
+        barra.progress(fet / total, f"Projectant aplicacions… {fet}/{total}")
     barra.empty()
-
-    models = Counter(d["model"] for d in resultat.values())
-    st.success(f"✅ {len(resultat)} aplicacions projectades · " +
-               " · ".join(f"{k}: {v}" for k, v in models.items()))
 
     with st.spinner("Detectant anomalies i construint l'Excel…"):
         det = detectar(resultat)
         xlsx = construir_excel(resultat, det, any_proj, mes_defecte)
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("ℹ️ Pics meritació", len(det[1]))
-    c2.metric("🔴 Infraexecució", len(det[2]))
-    c3.metric("🟡 Ingr. endarrerits", len(det[3]))
-    c4.metric("🟠 Possibles duplicats", len(det[4]))
+    models = Counter(d["model"] for d in resultat.values())
 
+    # ---- resultat ----
+    st.divider()
+    st.markdown("#### Resultat")
+    st.write(f"S'han projectat **{len(resultat)} aplicacions** amb el millor "
+             "model per a cadascuna (selecció per criteri AIC):")
+    m1, m2, m3 = st.columns(3)
+    m1.metric("SARIMA", models.get("SARIMA", 0))
+    m2.metric("ETS (Holt-Winters)", models.get("ETS (Holt-Winters)", 0))
+    m3.metric("Estacional simple", models.get("Estacional-simple", 0))
+
+    st.write("Anomalies detectades sobre la projecció:")
+    a1, a2, a3, a4 = st.columns(4)
+    a1.metric("Pics meritació", len(det[1]), help="Informatiu en ingressos")
+    a2.metric("Infraexecució", len(det[2]))
+    a3.metric("Ingr. endarrerits", len(det[3]))
+    a4.metric("Possibles duplicats", len(det[4]))
+
+    st.write("")
     st.download_button(
-        "⬇️ Descarregar l'Excel d'anàlisi",
+        "⬇  Descarregar l'Excel d'anàlisi",
         data=xlsx,
         file_name=f"ANALISI_INGRESSOS_{any_proj}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        type="primary",
     )
-    st.caption("L'Excel conté fórmules vives: canviant el mes o els llindars "
-               "a PARAMETRES, tota l'anàlisi es recalcula automàticament.")
+    st.caption("L'Excel conté fórmules vives: canviant el mes o els llindars a la "
+               "pestanya PARAMETRES, tota l'anàlisi es recalcula automàticament.")
+    _peu()
+
+
+def _peu():
+    st.markdown(
+        '<div class="peu">Àrea de Suport Econòmic · Servei de Concertació i '
+        'Assistència al Municipi · Diputació de Tarragona</div>',
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":
